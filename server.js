@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 
 const BOT_TOKEN = "9130024533:AAEnz59o8XbZyJ3jK9n_qM_mfycdCm2q0Eg";
-const ADMIN_ID = 8343576029;
+const ADMIN_ID = "8343576029"; // String format taaki type match mein dikkat na aaye
 const TARGET_CHANNEL_ID = -1002292581257;
 
 const WELCOME_FILE = path.join(__dirname, 'welcome_msg.json');
@@ -107,7 +107,7 @@ async function sendSavedWelcome(chatId, w) {
 
 async function sendDefaultWelcome(chatId) {
     return tgCall('sendMessage', {
-        chatId: chatId,
+        chat_id: chatId,
         text: DEFAULT_WELCOME_TEXT,
         disable_web_page_preview: true
     });
@@ -136,34 +136,38 @@ app.post('/api/webhook', async (req, res) => {
         const update = req.body;
         console.log("📥 Incoming Telegram Update:", JSON.stringify(update));
 
-        if (
-            update.message &&
-            update.message.text &&
-            update.message.text.startsWith('/setwelcome') &&
-            update.message.from &&
-            update.message.from.id === ADMIN_ID
-        ) {
-            const chatId = update.message.chat.id;
-            const replied = update.message.reply_to_message;
-            let reply;
+        if (update.message) {
+            const senderId = String(update.message.from.id);
+            const messageText = update.message.text || "";
+            console.log(`👤 Message from ID: ${senderId}, Text: ${messageText}`);
 
-            if (!replied) {
-                reply = "⚠️ किसी मैसेज/फोटो/डॉक्यूमेंट पर रिप्लाई करके /setwelcome लिखें।";
-            } else {
-                const data = extractMessage(replied);
-                if (!data) {
-                    reply = "⚠️ यह मैसेज टाइप सपोर्टेड नहीं है। टेक्स्ट, फोटो, वीडियो या डॉक्यूमेंट इस्तेमाल करें।";
+            if (messageText.startsWith('/setwelcome')) {
+                if (senderId !== ADMIN_ID) {
+                    console.log(`❌ Unauthorized /setwelcome attempt by ID: ${senderId}`);
+                    await tgCall('sendMessage', { chat_id: update.message.chat.id, text: "⚠️ Aap admin nahi hain!" });
                 } else {
-                    saveWelcome(data);
-                    reply = "✅ वेलकम मैसेज सेव हो गया!";
+                    const chatId = update.message.chat.id;
+                    const replied = update.message.reply_to_message;
+                    let reply;
+
+                    if (!replied) {
+                        reply = "⚠️ किसी मैसेज/फोटो/डॉक्यूमेंट पर रिप्लाई करके /setwelcome लिखें।";
+                    } else {
+                        const data = extractMessage(replied);
+                        if (!data) {
+                            reply = "⚠️ यह मैसेज टाइप सपोर्टेड नहीं है। टेक्स्ट, फोटो, वीडियो या डॉक्यूमेंट इस्तेमाल करें।";
+                        } else {
+                            saveWelcome(data);
+                            reply = "✅ वेलकम मैसेज सफलतापूर्वक सेव हो गया!";
+                        }
+                    }
+                    await tgCall('sendMessage', { chat_id: chatId, text: reply });
                 }
+            } else if (messageText.startsWith('/start')) {
+                const chatId = update.message.chat.id;
+                await sendWelcome(chatId);
+                console.log("✅ Welcome message sent to chat:", chatId);
             }
-            await tgCall('sendMessage', { chat_id: chatId, text: reply });
-        } 
-        else if (update.message && update.message.text && update.message.text.startsWith('/start')) {
-            const chatId = update.message.chat.id;
-            await sendWelcome(chatId);
-            console.log("✅ Welcome message sent to chat:", chatId);
         }
 
         const event = update.chat_join_request;
@@ -173,7 +177,6 @@ app.post('/api/webhook', async (req, res) => {
 
             if (reqChatId === TARGET_CHANNEL_ID) {
                 console.log("🔥 Valid Chat Join Request detected from User ID:", userId);
-
                 try {
                     const wRes = await sendWelcome(event.user_chat_id || userId);
                     if (wRes && wRes.ok) {
