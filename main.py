@@ -24,7 +24,7 @@ def keep_alive():
 
 # --- तेरा नया Bot Token और Admin ID ---
 BOT_TOKEN = "9130024533:AAEnz59o8XbZyJ3jK9n_qM_mfycdCm2q0Eg"
-ADMIN_ID = 8343576029                 
+ADMIN_ID = 8343576029                     
 USERS_FILE = "users.json"
 WELCOME_MSG_FILE = "welcome_msg.json"
 
@@ -71,22 +71,14 @@ def get_saved_welcome_messages():
             return []
     return []
 
-# --- 1. Join Request आते ही रिक्वेस्ट अप्रूव करना और सारे वेलकम मैसेज भेजना ---
+# --- 1. Join Request आते ही सीक्वेंस से सारे वेलकम मैसेज भेजना ---
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     request = update.chat_join_request
     user = request.from_user
     user_id = user.id
     user_name = user.first_name or "User"
-    chat_id = request.chat.id
     
     save_user(user_id)
-
-    # सबसे पहले यूजर की ज्वॉइन रिक्वेस्ट अप्रूव करें
-    try:
-        await context.bot.approve_chat_join_request(chat_id=chat_id, user_id=user_id)
-        print(f"✅ Approved join request for user: {user_id}")
-    except Exception as e:
-        print(f"❌ Failed to approve join request: {e}")
 
     welcome_list = get_saved_welcome_messages()
     if welcome_list:
